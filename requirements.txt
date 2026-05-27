@@ -1,0 +1,4 @@
+flet
+pymysql
+passlib
+bcrypt
