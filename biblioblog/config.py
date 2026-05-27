@@ -18,11 +18,11 @@ SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "False").lower() == "true"  # Para cone
 
 # Base de datos
 USE_MYSQL = os.getenv("USE_MYSQL", "True").lower() == "true"
-MYSQL_HOST = os.getenv("MYSQL_HOST", "192.168.100.22")  # <-- Cambiado para la App Móvil
+MYSQL_HOST = os.getenv("MYSQL_HOST", "b6pbv5tvr4kr0quq9thw-mysql.services.clever-cloud.com")  # <-- Cambiado para la App Móvil
 MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
-MYSQL_USER = os.getenv("MYSQL_USER", "root")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "mysql")
-MYSQL_DB = os.getenv("MYSQL_DB", "biblioblog")
+MYSQL_USER = os.getenv("MYSQL_USER", "uvrsvnnurjhzkwto")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "MtmEc7bU3mekXsvshXs4")
+MYSQL_DB = os.getenv("MYSQL_DB", "b6pbv5tvr4kr0quq9thw")
 
 # Tiempo en segundos entre verificaciones de préstamos próximos a vencer
 NOTIFICATION_CHECK_INTERVAL = int(os.getenv("NOTIFICATION_CHECK_INTERVAL", "3600"))
