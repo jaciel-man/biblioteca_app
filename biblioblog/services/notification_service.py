@@ -1,9 +1,9 @@
 import concurrent.futures
 import threading
 
-from config import NOTIFICATION_CHECK_INTERVAL
-from model.database import Database
-from model.prestamos import PrestamoModel
+from biblioblog.config import NOTIFICATION_CHECK_INTERVAL
+from biblioblog.model.database import Database
+from biblioblog.model.prestamos import PrestamoModel
 from .email_service import EmailService
 
 

@@ -1,205 +1,164 @@
-import customtkinter as ctk
-from tkinter import messagebox, simpledialog
-from view.registro_view import RegistroView
+import flet as ft
+from biblioblog.utils.theme import PRIMARY_COLOR, SECONDARY_COLOR, ACCENT_COLOR
 
-class LoginView(ctk.CTkFrame):
-
-    def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.parent = parent
-        self.controller = controller
-        self.configure(fg_color=("#f0f0f0", "#1a1a1a"))
-
-        # Frame principal centrado
-        main_frame = ctk.CTkFrame(self, fg_color="transparent")
-        main_frame.pack(expand=True)
-
-        # Título
-        title = ctk.CTkLabel(
-            main_frame,
-            text="📚 BiblioBlog",
-            font=("Arial", 40, "bold")
+class LoginView:
+    def __init__(self, app):
+        self.app = app
+        self.user_input = ft.TextField(label="Usuario", hint_text="Ingrese su usuario", width=400)
+        self.pass_input = ft.TextField(label="Contraseña", hint_text="Ingrese su contraseña", password=True, can_reveal_password=True, width=400)
+        self.rol_input = ft.Dropdown(
+            label="Tipo de usuario",
+            width=400,
+            options=[
+                ft.dropdown.Option("Cliente"),
+                ft.dropdown.Option("Propietario"),
+            ],
+            value="Cliente"
         )
-        title.pack(pady=(0, 10))
+        self.login_btn = ft.ElevatedButton("✓ Entrar", on_click=self.do_login, style=ft.ButtonStyle(bgcolor=PRIMARY_COLOR, color=ft.Colors.WHITE), width=400, height=45)
 
-        subtitle = ctk.CTkLabel(
-            main_frame,
-            text="Sistema de Gestión de Biblioteca",
-            font=("Arial", 14),
-            text_color=("gray60", "gray70")
+    def build(self):
+        return ft.Container(
+            expand=True,
+            alignment=ft.Alignment(0, 0),
+            padding=20,
+            content=ft.Column(
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=15,
+                controls=[
+                    ft.Text("📚 Iniciar Sesión", size=24, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR),
+                    self.user_input,
+                    self.pass_input,
+                    self.rol_input,
+                    ft.Container(height=20),
+                    self.login_btn,
+                    ft.ElevatedButton("+ Crear nueva cuenta", on_click=lambda _: self.app.show_view("registro"), style=ft.ButtonStyle(bgcolor=SECONDARY_COLOR, color=ft.Colors.WHITE), width=400, height=40),
+                    ft.ElevatedButton("🔑 Recuperar Contraseña", on_click=self.do_recover, style=ft.ButtonStyle(bgcolor=ACCENT_COLOR, color=ft.Colors.WHITE), width=400, height=40),
+                    ft.ElevatedButton("← Volver al Inicio", on_click=lambda _: self.app.show_view("welcome"), style=ft.ButtonStyle(bgcolor="#64748b", color=ft.Colors.WHITE), width=400, height=40)
+                ]
+            )
         )
-        subtitle.pack(pady=(0, 30))
 
-        # Frame para inputs
-        input_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        input_frame.pack(pady=20)
+    def _open_dlg(self, dlg):
+        self.app.page.show_dialog(dlg)
 
-        # Usuario
-        ctk.CTkLabel(input_frame, text="Usuario:", font=("Arial", 12)).pack(anchor="w", padx=20, pady=(0, 5))
-        self.user = ctk.CTkEntry(input_frame, placeholder_text="Ingrese su usuario", width=250, height=35)
-        self.user.pack(padx=20, pady=(0, 15))
-        self.user.bind("<Return>", lambda e: self.login())
+    def _close_dlg(self, dlg):
+        self.app.page.pop_dialog()
 
-        # Contraseña
-        ctk.CTkLabel(input_frame, text="Contraseña:", font=("Arial", 12)).pack(anchor="w", padx=20, pady=(0, 5))
-        self.password = ctk.CTkEntry(input_frame, placeholder_text="Ingrese su contraseña", show="*", width=250, height=35)
-        self.password.pack(padx=20, pady=(0, 20))
-        self.password.bind("<Return>", lambda e: self.login())
+    def show_alert(self, title, msg):
+        dlg = ft.AlertDialog(
+            title=ft.Text(title),
+            content=ft.Text(msg),
+            actions=[ft.TextButton("OK", on_click=lambda _: self._close_dlg(dlg))]
+        )
+        self._open_dlg(dlg)
 
-        # Rol
-        ctk.CTkLabel(input_frame, text="Tipo de usuario:", font=("Arial", 12)).pack(anchor="w", padx=20, pady=(0, 10))
-        rol_frame = ctk.CTkFrame(input_frame, fg_color="transparent")
-        rol_frame.pack(padx=20, pady=(0, 20))
-
-        self.rol = ctk.StringVar(value="cliente")
-        ctk.CTkRadioButton(
-            rol_frame,
-            text="Cliente",
-            variable=self.rol,
-            value="cliente",
-            font=("Arial", 11)
-        ).pack(anchor="w", pady=5)
-        ctk.CTkRadioButton(
-            rol_frame,
-            text="Propietario",
-            variable=self.rol,
-            value="propietario",
-            font=("Arial", 11)
-        ).pack(anchor="w", pady=5)
-
-        # Botones
-        button_frame = ctk.CTkFrame(input_frame, fg_color="transparent")
-        button_frame.pack(pady=20)
-
-        ctk.CTkButton(
-            button_frame,
-            text="Entrar",
-            command=self.login,
-            width=250,
-            height=40,
-            font=("Arial", 12, "bold"),
-            fg_color=("#0078d4", "#0078d4")
-        ).pack(pady=10)
-
-        ctk.CTkButton(
-            button_frame,
-            text="Crear nueva cuenta",
-            command=self.registro,
-            width=250,
-            height=40,
-            font=("Arial", 12),
-            fg_color=("gray70", "gray30"),
-            text_color=("black", "white")
-        ).pack(pady=5)
-
-        ctk.CTkButton(
-            button_frame,
-            text="Recuperar Contraseña",
-            command=self.recuperar_contraseña,
-            width=250,
-            height=40,
-            font=("Arial", 12),
-            fg_color=("#ffc107", "#ffc107"),
-            text_color=("black", "white")
-        ).pack(pady=5)
-        ctk.CTkButton(
-            button_frame,
-            text="Volver al Inicio",
-            command=self.volver_a_inicio,
-            width=250,
-            height=40,
-            font=("Arial", 12),
-            fg_color=("gray70", "gray30"),
-            text_color=("black", "white")
-        ).pack(pady=5)
-
-    def volver_a_inicio(self):
-        from view.welcome_view import WelcomeView
-        self.destroy()
-        WelcomeView(self.parent, self.controller).pack(fill="both", expand=True)
-    def login(self):
-        user = self.user.get().strip()
-        password = self.password.get()
-        rol = self.rol.get()
-
-        if not user or not password:
-            messagebox.showwarning("Validación", "Por favor complete todos los campos")
+    def do_login(self, e):
+        user = self.user_input.value.strip() if self.user_input.value else ""
+        pwd = self.pass_input.value if self.pass_input.value else ""
+        rol = self.rol_input.value.lower() if self.rol_input.value else "cliente"
+        if "propietario" in rol:
+            rol = "administrador"
+        
+        if not user or not pwd:
+            self.show_alert('Error', 'Complete todos los campos')
             return
+            
+        self.login_btn.text = '⏳ Entrando...'
+        self.login_btn.disabled = True
+        self.app.page.update()
+        
+        import threading
+        threading.Thread(target=self._login_thread, args=(user, pwd, rol), daemon=True).start()
 
-        valido = self.controller.login(user, password, rol)
+    def _login_thread(self, user, pwd, rol):
+        try:
+            res = self.app.controller.login(user, pwd, rol)
+            if res is True:
+                self.app.controller.usuario_actual = user
+                self.app.controller.rol_actual = rol
+                self.app.show_view("dashboard")
+            elif res == 'not_verified':
+                self.ask_verification(user, rol)
+            else:
+                self.show_alert('Error', 'Usuario o contraseña incorrectos')
+        except Exception as ex:
+            self.show_alert('Error', str(ex))
+        finally:
+            self.login_btn.text = '✓ Entrar'
+            self.login_btn.disabled = False
+            self.app.page.update()
 
-        if valido == True:
-            self.controller.usuario_actual = user
-            self.controller.rol_actual = rol
-            self.destroy()
-            from view.dashboard_view import DashboardView
-            DashboardView(self.parent, self.controller).pack(fill="both", expand=True)
-            return
+    def ask_verification(self, user, rol):
+        code_input = ft.TextField(label="Código de 6 dígitos")
+        
+        def on_verify(e):
+            code = code_input.value.strip()
+            if self.app.controller.verificar_codigo(user, rol, code):
+                self._close_dlg(dlg)
+                self.app.controller.usuario_actual = user
+                self.app.controller.rol_actual = rol
+                self.show_alert('Éxito', 'Cuenta verificada correctamente')
+                self.app.show_view("dashboard")
+            else:
+                self.show_alert('Error', 'Código incorrecto')
 
-        if valido == "not_verified":
-            from tkinter import simpledialog
-            messagebox.showinfo("Cuenta sin verificar", "Tu cuenta está pendiente de verificación. Revisa tu correo para el código.")
-            code = simpledialog.askstring("Verificación", "Ingresa el código de verificación que recibiste por correo:")
-            if code and self.controller.verificar_codigo(user, rol, code.strip()):
-                messagebox.showinfo("Verificación", "Código correcto. Sesión iniciada.")
-                self.controller.usuario_actual = user
-                self.controller.rol_actual = rol
-                self.destroy()
-                from view.dashboard_view import DashboardView
-                DashboardView(self.parent, self.controller).pack(fill="both", expand=True)
-                return
+        dlg = ft.AlertDialog(
+            title=ft.Text('Verificación'),
+            content=ft.Column([
+                ft.Text('Tu cuenta está pendiente de verificación.\nRevisa tu correo e ingresa el código:'),
+                code_input
+            ], tight=True),
+            actions=[
+                ft.TextButton("Verificar", on_click=on_verify),
+                ft.TextButton("Cancelar", on_click=lambda _: self._close_dlg(dlg))
+            ]
+        )
+        self._open_dlg(dlg)
 
-            # Reintentar con re-envío opcional
-            if messagebox.askyesno("Reenviar código", "¿Deseas reenviar un nuevo código de verificación? Si eliges No, puedes intentar el código manual otra vez."):
-                if self.controller.reenviar_codigo(user, rol):
-                    messagebox.showinfo("Código reenviado", "Se envió un nuevo código a tu correo.")
-                else:
-                    messagebox.showwarning("Error", "No se pudo reenviar el código. Revisa la configuración SMTP.")
-            self.password.delete(0, "end")
-            return
-
-        messagebox.showerror("Error de autenticación", "Usuario o contraseña incorrectos")
-        self.password.delete(0, "end")
-
-    def recuperar_contraseña(self):
-        user = self.user.get().strip()
-        rol = self.rol.get()
-
+    def do_recover(self, e):
+        user = self.user_input.value.strip() if self.user_input.value else ""
+        rol = self.rol_input.value.lower() if self.rol_input.value else "cliente"
+        if "propietario" in rol:
+            rol = "administrador"
         if not user:
-            messagebox.showwarning("Validación", "Ingresa tu usuario para recuperar contraseña")
+            self.show_alert('Error', 'Ingrese su usuario primero en el campo correspondiente')
             return
-
-        enviado = self.controller.solicitar_codigo_recuperacion(user, rol)
-        if not enviado:
-            messagebox.showerror("Error", "No se pudo enviar el código de recuperación. Verifica tu usuario y configuración de correo")
-            return
-
-        messagebox.showinfo("Recuperar contraseña", "Se envió un código a tu correo registrado")
-
-        codigo = simpledialog.askstring("Código de recuperación", "Ingresa el código recibido en tu correo:")
-        if not codigo:
-            return
-
-        if not self.controller.verificar_codigo_recuperacion(user, rol, codigo.strip()):
-            messagebox.showerror("Error", "Código incorrecto")
-            return
-
-        nueva = simpledialog.askstring("Nueva contraseña", "Ingresa la nueva contraseña:", show="*")
-        if not nueva or len(nueva) < 4:
-            messagebox.showwarning("Validación", "La contraseña debe tener al menos 4 caracteres")
-            return
-
-        confirmacion = simpledialog.askstring("Confirmar contraseña", "Repite la nueva contraseña:", show="*")
-        if confirmacion != nueva:
-            messagebox.showwarning("Validación", "Las contraseñas no coinciden")
-            return
-
-        rest = self.controller.restablecer_contraseña_por_codigo(user, rol, codigo.strip(), nueva)
-        if rest:
-            messagebox.showinfo("Éxito", "Contraseña actualizada correctamente. Ahora inicia sesión.")
-        else:
-            messagebox.showerror("Error", "No se pudo actualizar la contraseña")
-
-    def registro(self):
-        self.destroy()
-        RegistroView(self.parent, self.controller).pack(fill="both", expand=True)
+            
+        code_input = ft.TextField(label="Código recibido")
+        new_pwd = ft.TextField(label="Nueva contraseña", password=True)
+        status_text = ft.Text("Generando código y enviando correo...")
+        
+        def on_update(e):
+            code = code_input.value.strip()
+            pwd = new_pwd.value
+            if len(pwd) < 4:
+                self.show_alert('Error', 'Mínimo 4 caracteres')
+                return
+            if self.app.controller.restablecer_contraseña_por_codigo(user, rol, code, pwd):
+                self._close_dlg(dlg)
+                self.show_alert('Éxito', 'Contraseña actualizada')
+            else:
+                self.show_alert('Error', 'Código incorrecto o error al actualizar')
+        
+        dlg = ft.AlertDialog(
+            title=ft.Text('Recuperar Contraseña'),
+            content=ft.Column([status_text, code_input, new_pwd], tight=True),
+            actions=[
+                ft.TextButton("Actualizar", on_click=on_update),
+                ft.TextButton("Cancelar", on_click=lambda _: self._close_dlg(dlg))
+            ]
+        )
+        self._open_dlg(dlg)
+        
+        import threading
+        def _send_recover():
+            if self.app.controller.solicitar_codigo_recuperacion(user, rol):
+                status_text.value = "Se envió un código a tu correo."
+            else:
+                status_text.value = "Error al enviar el correo. Verifique el usuario."
+                status_text.color = ft.Colors.RED
+            self.app.page.update()
+            
+        threading.Thread(target=_send_recover, daemon=True).start()

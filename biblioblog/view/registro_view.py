@@ -1,217 +1,141 @@
-import customtkinter as ctk
-from tkinter import messagebox, simpledialog
+import flet as ft
+from biblioblog.utils.theme import PRIMARY_COLOR, SECONDARY_COLOR
 
-class RegistroView(ctk.CTkFrame):
-
-    def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.parent = parent
-        self.controller = controller
-        self.configure(fg_color=("#f0f0f0", "#1a1a1a"))
-
-        # Frame principal centrado
-        main_frame = ctk.CTkFrame(self, fg_color="transparent")
-        main_frame.pack(expand=True)
-
-        # Título
-        title = ctk.CTkLabel(
-            main_frame,
-            text="📝 Crear Cuenta",
-            font=("Arial", 40, "bold")
+class RegistroView:
+    def __init__(self, app):
+        self.app = app
+        
+        self.user_input = ft.TextField(label="Usuario (Ej: juan123)", width=400)
+        self.nombres_input = ft.TextField(label="Nombres (Ej: Juan)", width=400)
+        self.apellidos_input = ft.TextField(label="Apellidos (Ej: Pérez)", width=400)
+        self.email_input = ft.TextField(label="Correo (ejemplo@email.com)", width=400)
+        self.pass_input = ft.TextField(label="Contraseña (Mínimo 4 caracteres)", password=True, can_reveal_password=True, width=400)
+        self.phone_input = ft.TextField(label="Teléfono (+1234567)", width=400)
+        self.fecha_nac_input = ft.TextField(label="Fecha de Nac. (DD/MM/AAAA)", width=400)
+        
+        self.rol_input = ft.Dropdown(
+            label="Tipo de usuario",
+            width=400,
+            options=[
+                ft.dropdown.Option("Cliente"),
+                ft.dropdown.Option("Propietario"),
+            ],
+            value="Cliente"
         )
-        title.pack(pady=(0, 10))
+        self.reg_btn = ft.ElevatedButton("✓ Registrar", on_click=self.do_register, style=ft.ButtonStyle(bgcolor=PRIMARY_COLOR, color=ft.Colors.WHITE), width=400, height=45)
 
-        subtitle = ctk.CTkLabel(
-            main_frame,
-            text="Complete todos los campos para registrarse",
-            font=("Arial", 14),
-            text_color=("gray60", "gray70")
+    def build(self):
+        return ft.Container(
+            expand=True,
+            alignment=ft.Alignment(0, 0),
+            padding=20,
+            content=ft.Column(
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=10,
+                controls=[
+                    ft.Text("📝 Crear Cuenta", size=24, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR),
+                    self.user_input,
+                    self.nombres_input,
+                    self.apellidos_input,
+                    self.email_input,
+                    self.pass_input,
+                    self.phone_input,
+                    self.fecha_nac_input,
+                    self.rol_input,
+                    ft.Container(height=10),
+                    self.reg_btn,
+                    ft.ElevatedButton("← Volver al Inicio", on_click=lambda _: self.app.show_view("welcome"), style=ft.ButtonStyle(bgcolor="#64748b", color=ft.Colors.WHITE), width=400, height=40)
+                ],
+                scroll=ft.ScrollMode.AUTO
+            )
         )
-        subtitle.pack(pady=(0, 30))
 
-        # Frame para inputs
-        input_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        input_frame.pack(pady=20)
+    def _open_dlg(self, dlg):
+        self.app.page.show_dialog(dlg)
 
-        # Usuario
-        ctk.CTkLabel(input_frame, text="Usuario:", font=("Arial", 12)).pack(anchor="w", padx=20, pady=(0, 5))
-        self.user = ctk.CTkEntry(input_frame, placeholder_text="Ingrese un nombre de usuario", width=250, height=35)
-        self.user.pack(padx=20, pady=(0, 15))
+    def _close_dlg(self, dlg):
+        self.app.page.pop_dialog()
 
-        # Contraseña
-        ctk.CTkLabel(input_frame, text="Contraseña:", font=("Arial", 12)).pack(anchor="w", padx=20, pady=(0, 5))
-        password_frame = ctk.CTkFrame(input_frame, fg_color="transparent")
-        password_frame.pack(padx=20, pady=(0, 15), fill="x")
-
-        self.password = ctk.CTkEntry(password_frame, placeholder_text="Ingrese una contraseña", show="*", width=200, height=35)
-        self.password.pack(side="left", fill="x", expand=True)
-
-        # Botón pequeño para ver contraseña mientras se mantiene presionado
-        self.btn_toggle_password = ctk.CTkButton(
-            password_frame,
-            text="👁",
-            width=40,
-            height=35,
-            fg_color=("#6c757d", "#6c757d")
+    def show_alert(self, title, msg):
+        dlg = ft.AlertDialog(
+            title=ft.Text(title),
+            content=ft.Text(msg),
+            actions=[ft.TextButton("OK", on_click=lambda _: self._close_dlg(dlg))]
         )
-        self.btn_toggle_password.pack(side="left", padx=(10, 0))
-        self.btn_toggle_password.bind("<ButtonPress-1>", self._start_reveal_password)
-        self.btn_toggle_password.bind("<ButtonRelease-1>", self._stop_reveal_password)
-        self.btn_toggle_password.bind("<Leave>", self._stop_reveal_password)
+        self._open_dlg(dlg)
 
-        # Correo
-        ctk.CTkLabel(input_frame, text="Correo:", font=("Arial", 12)).pack(anchor="w", padx=20, pady=(0, 5))
-        self.correo = ctk.CTkEntry(input_frame, placeholder_text="ejemplo@email.com", width=250, height=35)
-        self.correo.pack(padx=20, pady=(0, 15))
-
-        # Teléfono
-        ctk.CTkLabel(input_frame, text="Teléfono:", font=("Arial", 12)).pack(anchor="w", padx=20, pady=(0, 5))
-        self.telefono = ctk.CTkEntry(input_frame, placeholder_text="+1 XXX XXX XXXX", width=250, height=35)
-        self.telefono.pack(padx=20, pady=(0, 20))
-
-        # Rol
-        ctk.CTkLabel(input_frame, text="Tipo de usuario:", font=("Arial", 12)).pack(anchor="w", padx=20, pady=(0, 10))
-        rol_frame = ctk.CTkFrame(input_frame, fg_color="transparent")
-        rol_frame.pack(padx=20, pady=(0, 20))
-
-        self.rol = ctk.StringVar(value="cliente")
-        ctk.CTkRadioButton(
-            rol_frame,
-            text="Cliente",
-            variable=self.rol,
-            value="cliente",
-            font=("Arial", 11)
-        ).pack(anchor="w", pady=5)
-
-        # Botones
-        button_frame = ctk.CTkFrame(input_frame, fg_color="transparent")
-        button_frame.pack(pady=20)
-
-        ctk.CTkButton(
-            button_frame,
-            text="Registrar",
-            command=self.registrar,
-            width=250,
-            height=40,
-            font=("Arial", 12, "bold"),
-            fg_color=("#0078d4", "#0078d4")
-        ).pack(pady=10)
-
-        ctk.CTkButton(
-            button_frame,
-            text="Volver al Inicio",
-            command=self.volver_a_inicio,
-            width=250,
-            height=40,
-            font=("Arial", 12),
-            fg_color=("gray70", "gray30"),
-            text_color=("black", "white")
-        ).pack(pady=5)
-
-    def _start_reveal_password(self, event=None):
-        """Mostrar contraseña mientras se presiona el botón"""
-        self.password.configure(show="")
-
-    def _stop_reveal_password(self, event=None):
-        """Ocultar contraseña al soltar el botón"""
-        self.password.configure(show="*")
-
-    def registrar(self):
-        user = self.user.get().strip()
-        password = self.password.get()
-        correo = self.correo.get().strip()
-        telefono = self.telefono.get().strip()
-        rol = self.rol.get()
-
-        # Validaciones
-        if not user or not password or not correo or not telefono:
-            messagebox.showwarning("Validación", "Por favor complete todos los campos")
+    def do_register(self, e):
+        user = self.user_input.value.strip() if self.user_input.value else ""
+        nombres = self.nombres_input.value.strip() if self.nombres_input.value else ""
+        apellidos = self.apellidos_input.value.strip() if self.apellidos_input.value else ""
+        pwd = self.pass_input.value if self.pass_input.value else ""
+        email = self.email_input.value.strip() if self.email_input.value else ""
+        phone = self.phone_input.value.strip() if self.phone_input.value else ""
+        fecha_nac = self.fecha_nac_input.value.strip() if self.fecha_nac_input.value else ""
+        rol = self.rol_input.value.lower() if self.rol_input.value else "cliente"
+        if "propietario" in rol:
+            rol = "administrador"
+        
+        if not all([user, nombres, apellidos, pwd, email, phone, fecha_nac]):
+            self.show_alert('Error', 'Complete todos los campos')
             return
+            
+        self.reg_btn.text = '⏳ Registrando...'
+        self.reg_btn.disabled = True
+        self.app.page.update()
+        
+        import threading
+        threading.Thread(target=self._reg_thread, args=(user, pwd, email, phone, rol, nombres, apellidos, fecha_nac), daemon=True).start()
 
-        if len(user) < 3:
-            messagebox.showwarning("Validación", "El usuario debe tener al menos 3 caracteres")
-            return
-
-        if len(password) < 4:
-            messagebox.showwarning("Validación", "La contraseña debe tener al menos 4 caracteres")
-            return
-
-        if "@" not in correo or "." not in correo:
-            messagebox.showwarning("Validación", "Ingrese un correo válido")
-            return
-
-        if not telefono.isdigit():
-            messagebox.showwarning("Validación", "El teléfono debe contener solo números")
-            return
-
-        resultado = self.controller.registrar_usuario(user, password, correo, telefono, rol)
-
-        if resultado:
-            if rol == "cliente":
-                codigo = resultado
-                enviado = self.controller.enviar_confirmacion_registro(user, correo, codigo)
-                if enviado:
-                    messagebox.showinfo(
-                        "Éxito",
-                        "¡Cuenta registrada exitosamente! Se envió un correo con el código de verificación."
-                    )
+    def _reg_thread(self, user, pwd, email, phone, rol, nombres, apellidos, fecha_nac):
+        try:
+            res = self.app.controller.registrar_usuario(user, pwd, email, phone, rol, nombres, apellidos, fecha_nac)
+            if res:
+                if rol == 'cliente':
+                    self._verify_cliente(user, email, res, rol)
                 else:
-                    messagebox.showwarning(
-                        "Advertencia",
-                        "Cuenta registrada, pero no se pudo enviar el correo de confirmación. Copia el código que aparece a continuación."
-                    )
-                    messagebox.showinfo("Código de verificación", f"Tu código es: {codigo}")
+                    self.app.controller.usuario_actual = user
+                    self.app.controller.rol_actual = rol
+                    self.show_alert('Éxito', 'Cuenta de propietario creada y verificada')
+                    self.app.show_view("dashboard")
+            else:
+                self.show_alert('Error', 'El usuario ya existe o error al registrar')
+        except Exception as ex:
+            self.show_alert('Error', str(ex))
+        finally:
+            self.reg_btn.text = '✓ Registrar'
+            self.reg_btn.disabled = False
+            self.app.page.update()
 
-                # Pedir código para activar la cuenta
-                intentos = 3
-                while intentos > 0:
-                    ingresado = simpledialog.askstring("Verificación de correo", "Ingresa el código de verificación enviado al correo:")
-
-                    if ingresado is None:
-                        messagebox.showinfo("Cancelado", "Registro cancelado. El usuario no se guardará.")
-                        self.controller.eliminar_usuario(user, rol)
-                        self.destroy()
-                        from view.welcome_view import WelcomeView
-                        WelcomeView(self.parent, self.controller).pack(fill="both", expand=True)
-                        return
-
-                    if not ingresado.strip():
-                        messagebox.showwarning("Validación", "Por favor ingresa el código de verificación")
-                        continue
-
-                    if self.controller.verificar_codigo(user, rol, ingresado.strip()):
-                        messagebox.showinfo("Verificado", "Cuenta verificada correctamente. Accediendo al menú principal...")
-                        self.controller.usuario_actual = user
-                        self.controller.rol_actual = rol
-                        self.destroy()
-                        from view.dashboard_view import DashboardView
-                        DashboardView(self.parent, self.controller).pack(fill="both", expand=True)
-                        return
-
-                    intentos -= 1
-                    if intentos > 0:
-                        messagebox.showwarning("Código incorrecto", f"Código incorrecto. Te quedan {intentos} intentos.")
-
-                # Si llega aquí, se agotaron intentos
-                messagebox.showerror("Verificación fallida", "No se verificó la cuenta. El usuario no será guardado.")
-                self.controller.eliminar_usuario(user, rol)
-                self.destroy()
-                from view.welcome_view import WelcomeView
-                WelcomeView(self.parent, self.controller).pack(fill="both", expand=True)
-                return
-
-            # Propietario: ya verificado, entra directo al dashboard
-            self.controller.usuario_actual = user
-            self.controller.rol_actual = rol
-            messagebox.showinfo("Éxito", "Cuenta de propietario creada y verificada. Accediendo al menú principal...")
-            self.destroy()
-            from view.dashboard_view import DashboardView
-            DashboardView(self.parent, self.controller).pack(fill="both", expand=True)
-            return
-
-        messagebox.showerror("Error", "Este usuario ya existe. Intente con otro")
-
-    def volver_a_inicio(self):
-        from view.welcome_view import WelcomeView
-        self.destroy()
-        WelcomeView(self.parent, self.controller).pack(fill="both", expand=True)
+    def _verify_cliente(self, user, email, code, rol):
+        code_input = ft.TextField(label="Código")
+        
+        def on_verify(e):
+            input_code = code_input.value.strip()
+            if self.app.controller.verificar_codigo(user, rol, input_code):
+                self._close_dlg(dlg)
+                self.app.controller.usuario_actual = user
+                self.app.controller.rol_actual = rol
+                self.show_alert('Éxito', 'Cuenta verificada')
+                self.app.show_view("dashboard")
+            else:
+                self.show_alert('Error', 'Código incorrecto')
+        
+        dlg = ft.AlertDialog(
+            title=ft.Text('Verificar Correo'),
+            content=ft.Column([
+                ft.Text(f'Enviando código a {email}...'),
+                code_input
+            ], tight=True),
+            actions=[
+                ft.TextButton("Verificar", on_click=on_verify),
+                ft.TextButton("Cancelar", on_click=lambda _: self._close_dlg(dlg))
+            ]
+        )
+        self._open_dlg(dlg)
+        
+        import threading
+        def _send():
+            self.app.controller.enviar_confirmacion_registro(user, email, code)
+        threading.Thread(target=_send, daemon=True).start()

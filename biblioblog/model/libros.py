@@ -1,14 +1,14 @@
-from model.database import Database
+from biblioblog.model.database import Database
 
 
 class LibroModel:
     def obtener_libros(self):
         """Obtiene la lista de todos los libros disponibles."""
-        return Database.fetchall("SELECT titulo, autor, anio FROM libros ORDER BY titulo")
+        return Database.fetchall("SELECT titulo, autor, anio, genero, precio_renta, stock, pdf_url FROM libros ORDER BY titulo")
 
-    def agregar(self, titulo, autor, anio):
+    def agregar(self, titulo, autor, anio, genero, precio_renta=0.0, stock=0, pdf_url=''):
         """Agrega un nuevo libro a la base de datos."""
-        if not titulo or not autor or not anio:
+        if not titulo or not autor or not anio or not genero:
             return False
 
         existing = Database.fetchone(
@@ -19,8 +19,8 @@ class LibroModel:
             return False
 
         Database.execute(
-            "INSERT INTO libros (titulo, autor, anio) VALUES (?, ?, ?)",
-            (titulo, autor, str(anio)),
+            "INSERT INTO libros (titulo, autor, anio, genero, precio_renta, stock, pdf_url) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (titulo, autor, str(anio), genero, float(precio_renta), int(stock), pdf_url),
             commit=True,
         )
 
@@ -29,7 +29,7 @@ class LibroModel:
     def obtener_por_id(self, titulo):
         """Obtiene un libro específico por título."""
         return Database.fetchone(
-            "SELECT titulo, autor, anio FROM libros WHERE lower(titulo)=lower(?)",
+            "SELECT titulo, autor, anio, genero, precio_renta, stock, pdf_url FROM libros WHERE lower(titulo)=lower(?)",
             (titulo,),
         )
 

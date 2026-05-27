@@ -1,5 +1,6 @@
-from model.database import Database
-from view.app import App
+"""Entry point for running BiblioBlog as a module."""
+from .model.database import Database
+from .view.app import App
 
 if __name__ == "__main__":
     Database.initialize()

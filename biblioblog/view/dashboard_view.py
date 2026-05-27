@@ -1,855 +1,468 @@
-import customtkinter as ctk
-from tkinter import messagebox, simpledialog, ttk
-import tkinter as tk
+import flet as ft
+import webbrowser
+from collections import defaultdict
+from biblioblog.utils.theme import PRIMARY_COLOR, SECONDARY_COLOR, TAB_COLORS, GENRE_COLORS
 
-class DashboardView(ctk.CTkFrame):
-
-    def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.parent = parent
-        self.controller = controller
-        self.configure(fg_color=("#f0f0f0", "#1a1a1a"))
-
-        # Crear menú superior
-        self.crear_menu_superior()
-
-        # Crear contenido principal con tabs
-        self.crear_tabs()
-
-        if controller.rol_actual == "propietario":
-            self.crear_tabs_propietario()
-        else:
-            self.crear_tabs_cliente()
-
-    def crear_menu_superior(self):
-        """Crea la barra superior con título y botón de logout"""
-        top_frame = ctk.CTkFrame(self, fg_color=("#e0e0e0", "#2a2a2a"), height=60)
-        top_frame.pack(fill="x", padx=0, pady=0)
-        top_frame.grid_propagate(False)
-
-        # Título
-        titulo = ctk.CTkLabel(
-            top_frame,
-            text=f" BiblioBlog - {self.controller.rol_actual.title()}",
-            font=("Arial", 18, "bold")
-        )
-        titulo.pack(side="left", padx=20, pady=10)
-
-        # Info del usuario
-        info_label = ctk.CTkLabel(
-            top_frame,
-            text=f"Sesión: {self.controller.usuario_actual}",
-            font=("Arial", 11),
-            text_color=("gray60", "gray70")
-        )
-        info_label.pack(side="left", padx=10)
-
-        # Botón Volver a Login (Cerrar Sesión)
-        logout_btn = ctk.CTkButton(
-            top_frame,
-            text="Volver al Login",
-            command=self.logout,
-            width=130,
-            height=35,
-            font=("Arial", 10, "bold"),
-            fg_color=("#dc3545", "#dc3545")
-        )
-        logout_btn.pack(side="right", padx=(10, 5), pady=10)
-
-        # Botón Salir
-        salir_btn = ctk.CTkButton(
-            top_frame,
-            text="Salir",
-            command=self.parent.destroy,
-            width=100,
-            height=35,
-            font=("Arial", 10, "bold"),
-            fg_color=("#ff5722", "#ff5722")
-        )
-        salir_btn.pack(side="right", padx=(5, 20), pady=10)
-
-    def crear_tabs(self):
-        """Crea el sistema de tabs"""
-        self.tab_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.tab_frame.pack(fill="both", expand=True, padx=0, pady=0)
-
-    def crear_tabs_cliente(self):
-        """Crea las tabs para clientes"""
-        # Frame para los botones de tab
-        tab_buttons_frame = ctk.CTkFrame(self.tab_frame, fg_color=("#e0e0e0", "#2a2a2a"), height=50)
-        tab_buttons_frame.pack(fill="x", padx=0, pady=0)
-        tab_buttons_frame.grid_propagate(False)
-
-        self.tab_buttons = {}
-        tabs = [
-            ("Libros", self.mostrar_tab_libros),
-            ("Mis Préstamos", self.mostrar_tab_mis_prestamos),
-            ("Búsqueda", self.mostrar_tab_busqueda),
-            ("Mi Perfil", self.mostrar_tab_perfil)
-        ]
-
-        for i, (nombre, comando) in enumerate(tabs):
-            btn = ctk.CTkButton(
-                tab_buttons_frame,
-                text=nombre,
-                command=comando,
-                width=120,
-                height=40,
-                font=("Arial", 11, "bold"),
-                fg_color=("#0078d4" if i == 0 else ("gray70", "gray60")),
-                text_color=("white", "white") if i == 0 else ("black", "white")
-            )
-            btn.pack(side="left", padx=5, pady=5)
-            self.tab_buttons[nombre] = btn
-
-        # Frame para el contenido de tabs
-        self.content_frame = ctk.CTkFrame(self.tab_frame, fg_color="transparent")
-        self.content_frame.pack(fill="both", expand=True, padx=20, pady=20)
-
-        # Mostrar primera tab
-        self.mostrar_tab_libros()
-
-    def crear_tabs_propietario(self):
-        """Crea las tabs para propietarios"""
-        # Frame para los botones de tab
-        tab_buttons_frame = ctk.CTkFrame(self.tab_frame, fg_color=("#e0e0e0", "#2a2a2a"), height=50)
-        tab_buttons_frame.pack(fill="x", padx=0, pady=0)
-        tab_buttons_frame.grid_propagate(False)
-
-        self.tab_buttons = {}
-        tabs = [
-            ("Agregar Libro", self.mostrar_tab_agregar_libro),
-            ("Mis Libros", self.mostrar_tab_mis_libros),
-            ("Préstamos", self.mostrar_tab_todos_prestamos),
-            ("Clientes", self.mostrar_tab_clientes),
-            ("Estadísticas", self.mostrar_tab_estadisticas),
-            ("Mi Perfil", self.mostrar_tab_perfil_propietario)
-        ]
-
-        for i, (nombre, comando) in enumerate(tabs):
-            btn = ctk.CTkButton(
-                tab_buttons_frame,
-                text=nombre,
-                command=comando,
-                width=120,
-                height=40,
-                font=("Arial", 11, "bold"),
-                fg_color=("#0078d4" if i == 0 else ("gray70", "gray60")),
-                text_color=("white", "white") if i == 0 else ("black", "white")
-            )
-            btn.pack(side="left", padx=5, pady=5)
-            self.tab_buttons[nombre] = btn
-
-        # Frame para el contenido de tabs
-        self.content_frame = ctk.CTkFrame(self.tab_frame, fg_color="transparent")
-        self.content_frame.pack(fill="both", expand=True, padx=20, pady=20)
-
-        # Mostrar primera tab
-        self.mostrar_tab_agregar_libro()
-
-    def limpiar_content(self):
-        """Limpia el frame de contenido"""
-        for widget in self.content_frame.winfo_children():
-            widget.destroy()
-
-    def cambiar_color_tab(self, tab_nombre):
-        """Cambia el color del tab activo"""
-        for nombre, btn in self.tab_buttons.items():
-            if nombre == tab_nombre:
-                btn.configure(fg_color="#0078d4", text_color=("white", "white"))
-            else:
-                btn.configure(fg_color=("gray70", "gray60"), text_color=("black", "white"))
-
-    # ==================== TABS CLIENTE ====================
-
-    def mostrar_tab_libros(self):
-        """Tab de libros disponibles"""
-        self.cambiar_color_tab("Libros")
-        self.limpiar_content()
-
-        # Título
-        ctk.CTkLabel(self.content_frame, text=" Libros Disponibles", font=("Arial", 14, "bold")).pack(pady=(0, 15))
-
-        # Tabla de libros
-        self.crear_tabla_libros_cliente(self.content_frame)
-
-    def mostrar_tab_mis_prestamos(self):
-        """Tab de mis préstamos"""
-        self.cambiar_color_tab("Mis Préstamos")
-        self.limpiar_content()
-
-        # Título
-        ctk.CTkLabel(self.content_frame, text=" Mis Préstamos", font=("Arial", 14, "bold")).pack(pady=(0, 15))
-
-        # Tabla de préstamos
-        self.crear_tabla_prestamos_cliente(self.content_frame)
-
-    def mostrar_tab_busqueda(self):
-        """Tab de búsqueda de libros"""
-        self.cambiar_color_tab("Búsqueda")
-        self.limpiar_content()
-
-        # Título
-        ctk.CTkLabel(self.content_frame, text=" Buscar Libros", font=("Arial", 14, "bold")).pack(pady=(0, 15))
-
-        # Frame de búsqueda
-        search_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        search_frame.pack(fill="x", pady=(0, 20))
-
-        ctk.CTkLabel(search_frame, text="Buscar por título, autor o año:", font=("Arial", 11)).pack(anchor="w", padx=10, pady=(0, 5))
+class DashboardView:
+    def __init__(self, app):
+        self.app = app
+        self.content_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True, spacing=15)
         
-        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="Ingrese título, autor o año", height=35, width=300)
-        self.search_entry.pack(side="left", padx=10)
-
-        ctk.CTkButton(search_frame, text="Buscar", command=self.buscar_libros, width=100, height=35).pack(side="left", padx=5)
-
-        # Frame para resultados
-        self.search_results_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        self.search_results_frame.pack(fill="both", expand=True, pady=20)
-
-    def mostrar_tab_perfil(self):
-        """Tab de perfil del cliente"""
-        self.cambiar_color_tab("Mi Perfil")
-        self.limpiar_content()
-
-        ctk.CTkLabel(self.content_frame, text="👤 Mi Perfil", font=("Arial", 14, "bold")).pack(pady=(0, 20))
-
-        # Datos visibles siempre
-        ctk.CTkLabel(self.content_frame, text=f"Usuario: {self.controller.usuario_actual}", font=("Arial", 12)).pack(anchor="w", padx=20, pady=(0, 5))
-        ctk.CTkLabel(self.content_frame, text=f"Rol: {self.controller.rol_actual.title()}", font=("Arial", 12)).pack(anchor="w", padx=20, pady=(0, 10))
-
-        self.info_visible = False
-        self.btn_toggle_info = ctk.CTkButton(
-            self.content_frame,
-            text="Mostrar mi información",
-            command=self.toggle_info_usuario,
-            width=220,
-            height=40,
-            font=("Arial", 11, "bold"),
-            fg_color=("#0078d4", "#0078d4")
+    def build(self):
+        usuario = self.app.controller.usuario_actual or "BiblioBlog"
+        rol = self.app.controller.rol_actual or "cliente"
+        
+        # Header
+        header = ft.Container(
+            content=ft.Row(
+                controls=[
+                    ft.Text(f"📚 {usuario}", weight=ft.FontWeight.BOLD, size=16, color=ft.Colors.WHITE, expand=True),
+                    ft.ElevatedButton("Salir", on_click=self.do_logout, style=ft.ButtonStyle(bgcolor="#dc2626", color=ft.Colors.WHITE))
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+            ),
+            bgcolor=PRIMARY_COLOR,
+            padding=10
         )
-        self.btn_toggle_info.pack(pady=(0, 20), padx=20, anchor="w")
 
-        # Frame oculto para los datos de correo/teléfono y edición
-        self.info_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-
-
-        ctk.CTkButton(
-            self.content_frame,
-            text="Recuperar Contraseña",
-            command=self.recuperar_contraseña,
-            width=200,
-            height=40,
-            font=("Arial", 11, "bold"),
-            fg_color=("#ffc107", "#ffc107")
-        ).pack(pady=(0, 10), padx=20, anchor="w")
-
-    def toggle_info_usuario(self):
-        """Alterna la visibilidad de la información del perfil"""
-        if self.info_visible:
-            self.info_frame.pack_forget()
-            self.btn_toggle_info.configure(text="Mostrar mi información")
-            self.info_visible = False
+        # Tabs
+        if rol == 'cliente':
+            tab_labels = ["📚 Libros", "📋 Mis Préstamos", "🔍 Búsqueda", "👤 Mi Perfil"]
         else:
-            self.mostrar_info_detalle()
-            self.info_frame.pack(fill="x", padx=20, pady=(0, 20))
-            self.btn_toggle_info.configure(text="Ocultar mi información")
-            self.info_visible = True
+            tab_labels = ["➕ Agregar", "📚 Mis Libros", "📋 Préstamos", "👥 Clientes", "📊 Stats", "👤 Perfil"]
 
-    def mostrar_info_detalle(self):
-        """Muestra datos de correo, teléfono y permite editar"""
-        for w in self.info_frame.winfo_children():
-            w.destroy()
-
-        usuario_info = self.controller.obtener_info_usuario(self.controller.usuario_actual, self.controller.rol_actual)
-        correo_actual = usuario_info.get("correo") if usuario_info else ""
-        telefono_actual = usuario_info.get("telefono") if usuario_info else ""
-
-        ctk.CTkLabel(self.info_frame, text=f"Nombre de cuenta: {self.controller.usuario_actual}", font=("Arial", 12)).pack(anchor="w", pady=(0, 5))
-        ctk.CTkLabel(self.info_frame, text=f"Correo: {correo_actual}", font=("Arial", 12)).pack(anchor="w", pady=(0, 5))
-        ctk.CTkLabel(self.info_frame, text=f"Teléfono: {telefono_actual}", font=("Arial", 12)).pack(anchor="w", pady=(0, 10))
-
-        ctk.CTkButton(
-            self.info_frame,
-            text="Editar mi información",
-            command=self.mostrar_formulario_editar,
-            width=200,
-            height=35,
-            font=("Arial", 11, "bold"),
-            fg_color=("#17a2b8", "#17a2b8")
-        ).pack(pady=(0, 10), anchor="w")
-
-    def mostrar_formulario_editar(self):
-        """Muestra campos de edición dentro del info_frame"""
-        for w in self.info_frame.winfo_children():
-            w.destroy()
-
-        usuario_info = self.controller.obtener_info_usuario(self.controller.usuario_actual, self.controller.rol_actual)
-        correo_actual = usuario_info.get("correo") if usuario_info else ""
-        telefono_actual = usuario_info.get("telefono") if usuario_info else ""
-
-        ctk.CTkLabel(self.info_frame, text="Correo:", font=("Arial", 12)).pack(anchor="w", pady=(0, 5))
-        self.correo_entry = ctk.CTkEntry(self.info_frame, width=300, height=35)
-        self.correo_entry.insert(0, correo_actual)
-        self.correo_entry.pack(pady=(0, 10), anchor="w")
-
-        ctk.CTkLabel(self.info_frame, text="Teléfono:", font=("Arial", 12)).pack(anchor="w", pady=(0, 5))
-        self.telefono_entry = ctk.CTkEntry(self.info_frame, width=300, height=35)
-        self.telefono_entry.insert(0, telefono_actual)
-        self.telefono_entry.pack(pady=(0, 10), anchor="w")
-
-        ctk.CTkButton(
-            self.info_frame,
-            text="Guardar cambios",
-            command=self.actualizar_perfil,
-            width=200,
-            height=35,
-            font=("Arial", 11, "bold"),
-            fg_color=("#28a745", "#28a745")
-        ).pack(pady=(0, 10), anchor="w")
-
-    # ==================== TABS PROPIETARIO ====================
-
-    def mostrar_tab_agregar_libro(self):
-        """Tab para agregar nuevos libros"""
-        self.cambiar_color_tab("Agregar Libro")
-        self.limpiar_content()
-
-        titulo = ctk.CTkLabel(self.content_frame, text=" Agregar Nuevo Libro", font=("Arial", 14, "bold"))
-        titulo.pack(pady=(0, 20))
-
-        # Frame con inputs
-        input_frame = ctk.CTkFrame(self.content_frame, fg_color=("#e8f4f8", "#2a3a3a"), corner_radius=10)
-        input_frame.pack(fill="x", padx=20, pady=20)
-
-        # Título
-        ctk.CTkLabel(input_frame, text="Título:", font=("Arial", 11)).pack(anchor="w", padx=15, pady=(15, 5))
-        self.entrada_titulo = ctk.CTkEntry(input_frame, placeholder_text="Ej: El Quijote", height=30)
-        self.entrada_titulo.pack(anchor="w", padx=15, pady=(0, 10), fill="x")
-
-        # Autor
-        ctk.CTkLabel(input_frame, text="Autor:", font=("Arial", 11)).pack(anchor="w", padx=15, pady=(5, 5))
-        self.entrada_autor = ctk.CTkEntry(input_frame, placeholder_text="Ej: Miguel de Cervantes", height=30)
-        self.entrada_autor.pack(anchor="w", padx=15, pady=(0, 10), fill="x")
-
-        # Año
-        ctk.CTkLabel(input_frame, text="Año:", font=("Arial", 11)).pack(anchor="w", padx=15, pady=(5, 5))
-        self.entrada_anio = ctk.CTkEntry(input_frame, placeholder_text="Ej: 1605", height=30)
-        self.entrada_anio.pack(anchor="w", padx=15, pady=(0, 15), fill="x")
-
-        # Botón agregar
-        ctk.CTkButton(
-            input_frame,
-            text="Agregar Libro",
-            command=self.agregar_libro,
-            width=150,
-            height=35,
-            font=("Arial", 11, "bold"),
-            fg_color=("#28a745", "#28a745")
-        ).pack(pady=10)
-
-    def mostrar_tab_mis_libros(self):
-        """Tab de libros agregados"""
-        self.cambiar_color_tab("Mis Libros")
-        self.limpiar_content()
-
-        ctk.CTkLabel(self.content_frame, text=" Libros en la Biblioteca", font=("Arial", 14, "bold")).pack(pady=(0, 15))
-
-        self.crear_tabla_libros_propietario(self.content_frame)
-
-    def mostrar_tab_todos_prestamos(self):
-        """Tab de todos los préstamos"""
-        self.cambiar_color_tab("Préstamos")
-        self.limpiar_content()
-
-        ctk.CTkLabel(self.content_frame, text=" Todos los Préstamos", font=("Arial", 14, "bold")).pack(pady=(0, 15))
-
-        self.crear_tabla_todos_prestamos(self.content_frame)
-
-    def mostrar_tab_clientes(self):
-        """Tab de gestión de clientes"""
-        self.cambiar_color_tab("Clientes")
-        self.limpiar_content()
-
-        ctk.CTkLabel(self.content_frame, text="👥 Gestión de Clientes", font=("Arial", 14, "bold")).pack(pady=(0, 15))
-
-        self.crear_tabla_clientes(self.content_frame)
-
-    def mostrar_tab_estadisticas(self):
-        """Tab de estadísticas"""
-        self.cambiar_color_tab("Estadísticas")
-        self.limpiar_content()
-
-        ctk.CTkLabel(self.content_frame, text=" Estadísticas", font=("Arial", 14, "bold")).pack(pady=(0, 20))
-
-        libros = self.controller.obtener_libros()
-        prestamos = self.controller.obtener_todos_prestamos()
-        prestamos_activos = [p for p in prestamos if not p["devuelto"]]
-        prestamos_vencidos = self.controller.prestamo_model.obtener_prestamos_vencidos()
-        clientes = self.controller.obtener_clientes()
-
-        stats = f"""
- ESTADÍSTICAS DEL SISTEMA:
-
-Libros Totales: {len(libros)}
-Clientes Registrados: {len(clientes)}
-Préstamos Activos: {len(prestamos_activos)}
-Préstamos Finalizados: {len(prestamos) - len(prestamos_activos)}
-Préstamos Vencidos: {len(prestamos_vencidos)}
-        """
-
-        ctk.CTkLabel(
-            self.content_frame,
-            text=stats,
-            font=("Arial", 12),
-            justify="left",
-            text_color=("gray20", "gray80")
-        ).pack(anchor="w", padx=30, pady=20)
-
-    def mostrar_tab_perfil_propietario(self):
-        """Tab de perfil del propietario"""
-        self.cambiar_color_tab("Mi Perfil")
-        self.limpiar_content()
-
-        ctk.CTkLabel(self.content_frame, text="👤 Mi Perfil", font=("Arial", 14, "bold")).pack(pady=(0, 20))
-
-        ctk.CTkLabel(self.content_frame, text=f"Usuario: {self.controller.usuario_actual}", font=("Arial", 12)).pack(anchor="w", padx=20, pady=(0, 5))
-        ctk.CTkLabel(self.content_frame, text=f"Rol: {self.controller.rol_actual.title()}", font=("Arial", 12)).pack(anchor="w", padx=20, pady=(0, 10))
-
-        self.info_visible = False
-        self.btn_toggle_info = ctk.CTkButton(
-            self.content_frame,
-            text="Mostrar mi información",
-            command=self.toggle_info_usuario,
-            width=220,
-            height=40,
-            font=("Arial", 11, "bold"),
-            fg_color=("#0078d4", "#0078d4")
+        self.tabs_control = ft.Tabs(
+            length=len(tab_labels),
+            selected_index=0,
+            on_change=self.on_tab_change,
+            expand=True,
+            content=ft.Column(
+                controls=[
+                    header,
+                    ft.TabBar(
+                        tabs=[ft.Tab(label=lbl) for lbl in tab_labels]
+                    ),
+                    ft.Container(content=self.content_area, expand=True, padding=10)
+                ],
+                expand=True,
+                spacing=0
+            )
         )
-        self.btn_toggle_info.pack(pady=(0, 20), padx=20, anchor="w")
+        
+        # Load initial tab
+        self.load_tab(0)
+        
+        return self.tabs_control
 
-        self.info_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+    def do_logout(self, e):
+        self.app.controller.usuario_actual = None
+        self.app.controller.rol_actual = None
+        self.app.show_view("welcome")
 
-        ctk.CTkButton(
-            self.content_frame,
-            text="Cambiar Contraseña",
-            command=self.cambiar_contraseña,
-            width=200,
-            height=40,
-            font=("Arial", 11, "bold")
-        ).pack(pady=(0, 10), padx=20, anchor="w")
+    def _open_dlg(self, dlg):
+        self.app.page.show_dialog(dlg)
 
-        ctk.CTkButton(
-            self.content_frame,
-            text="Recuperar Contraseña",
-            command=self.recuperar_contraseña,
-            width=200,
-            height=40,
-            font=("Arial", 11, "bold"),
-            fg_color=("#ffc107", "#ffc107")
-        ).pack(pady=(0, 10), padx=20, anchor="w")
+    def _close_dlg(self, dlg):
+        self.app.page.pop_dialog()
 
-    # ==================== MÉTODOS AUXILIARES ====================
+    def _safe_update(self, control):
+        try:
+            control.update()
+        except Exception:
+            pass
 
-    def crear_tabla_libros_cliente(self, parent):
-        """Crea tabla de libros para cliente"""
-        # Frame para la tabla
-        table_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        table_frame.pack(fill="both", expand=True)
+    def show_alert(self, title, msg):
+        dlg = ft.AlertDialog(
+            title=ft.Text(title),
+            content=ft.Text(msg),
+            actions=[ft.TextButton("OK", on_click=lambda _: self._close_dlg(dlg))]
+        )
+        self._open_dlg(dlg)
 
-        # Crear Treeview
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure('Treeview', font=("Arial", 10), rowheight=25)
-        style.configure('Treeview.Heading', font=("Arial", 10, "bold"))
+    def on_tab_change(self, e):
+        self.load_tab(self.tabs_control.selected_index)
 
-        columns = ("Título", "Autor", "Año", "Acción")
+    def load_tab(self, index):
+        self.content_area.controls = []
+        rol = self.app.controller.rol_actual
+        
+        if rol == 'cliente':
+            if index == 0: self.tab_libros()
+            elif index == 1: self.tab_mis_prestamos()
+            elif index == 2: self.tab_busqueda()
+            elif index == 3: self.tab_perfil()
+        else:
+            if index == 0: self.tab_agregar()
+            elif index == 1: self.tab_mis_libros()
+            elif index == 2: self.tab_todos_prestamos()
+            elif index == 3: self.tab_clientes()
+            elif index == 4: self.tab_stats()
+            elif index == 5: self.tab_perfil()
+        self.app.page.update()
+        self._safe_update(self.content_area)
 
-        tree = ttk.Treeview(table_frame, columns=columns, height=12, show="headings")
-        tree.pack(fill="both", expand=True)
+    def _abrir_pdf(self, pdf_url):
+        if not pdf_url or not pdf_url.strip():
+            self.show_alert('Sin PDF', 'Este libro no tiene un PDF asociado.')
+            return
+        try:
+            webbrowser.open(pdf_url.strip())
+        except Exception:
+            self.show_alert('Error', 'No se pudo abrir el PDF.')
 
-        tree.column("Título", width=150)
-        tree.column("Autor", width=150)
-        tree.column("Año", width=80)
-        tree.column("Acción", width=100)
+    def _rentar(self, titulo, btn_ref=None):
+        if btn_ref:
+            btn_ref.text = "⏳"
+            btn_ref.disabled = True
+            self.app.page.update()
+            self._safe_update(btn_ref)
+            
+        import threading
+        def _task():
+            self.app.controller.rentar_libro(titulo)
+            self.show_alert('Éxito', f"Libro '{titulo}' rentado por 7 días")
+            if self.app.controller.rol_actual == 'cliente':
+                self.tabs_control.selected_index = 1
+                self.load_tab(1)
+            self.app.page.update()
+            self._safe_update(self.content_area)
+            
+        threading.Thread(target=_task, daemon=True).start()
 
-        tree.heading("Título", text="Título")
-        tree.heading("Autor", text="Autor")
-        tree.heading("Año", text="Año")
-        tree.heading("Acción", text="Acción")
-
-        libros = self.controller.obtener_libros()
-
+    # --- CLIENTE TABS ---
+    def tab_libros(self):
+        self.content_area.controls.append(ft.Text("📚 Libros Disponibles", size=20, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR))
+        libros = self.app.controller.obtener_libros()
         if not libros:
-            tree.insert("", "end", values=("No hay libros disponibles", "", ""))
-        else:
-            for libro in libros:
-                valores = (libro["titulo"], libro["autor"], libro["anio"], "Rentar")
-                tree.insert("", "end", values=valores)
-
-        def on_click(event):
-            item = tree.selection()[0] if tree.selection() else None
-            if item:
-                titulo = tree.item(item)["values"][0]
-                if titulo != "No hay libros disponibles":
-                    self.rentar_libro(titulo)
-
-        tree.bind("<Button-1>", on_click)
-
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
-        scrollbar.pack(side="right", fill="y")
-        tree.configure(yscroll=scrollbar.set)
-
-    def crear_tabla_prestamos_cliente(self, parent):
-        """Crea tabla de préstamos para cliente"""
-        table_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        table_frame.pack(fill="both", expand=True)
-
-        style = ttk.Style()
-        columns = ("Libro", "Desde", "Hasta", "Estado", "Renovaciones", "Acción")
-
-        tree = ttk.Treeview(table_frame, columns=columns, height=12, show="headings")
-        tree.pack(fill="both", expand=True)
-
-        tree.column("Libro", width=120)
-        tree.column("Desde", width=100)
-        tree.column("Hasta", width=100)
-        tree.column("Estado", width=70)
-        tree.column("Renovaciones", width=80)
-        tree.column("Acción", width=100)
-
-        for col in columns:
-            tree.heading(col, text=col)
-
-        prestamos = self.controller.obtener_mis_prestamos()
-
-        if not prestamos:
-            tree.insert("", "end", values=("No tienes préstamos", "", "", "", "", ""))
-        else:
-            for prestamo in prestamos:
-                estado = "Devuelto" if prestamo["devuelto"] else "Activo"
-                renovaciones = prestamo.get("renovaciones", 0)
-                valores = (
-                    prestamo["libro"],
-                    prestamo["fecha_prestamo"],
-                    prestamo["fecha_vencimiento"],
-                    estado,
-                    renovaciones,
-                    "Renovar" if not prestamo["devuelto"] else ""
+            self.content_area.controls.append(ft.Text("No hay libros disponibles"))
+            return
+            
+        por_genero = defaultdict(list)
+        for lib in libros:
+            por_genero[lib.get('genero', 'Sin Género')].append(lib)
+            
+        for gen, libs in por_genero.items():
+            g_color = GENRE_COLORS.get(gen, '#6b7280')
+            
+            gen_col = ft.Column(spacing=10)
+            gen_col.controls.append(ft.Text(f"📌 {gen} ({len(libs)})", color=g_color, weight=ft.FontWeight.BOLD, size=16))
+            
+            for l in libs:
+                pdf_url = l.get('pdf_url', '') or ''
+                has_pdf = bool(pdf_url.strip())
+                
+                btns = [
+                    ft.ElevatedButton("Rentar", on_click=lambda e, t=l['titulo']: self._rentar(t, e.control), style=ft.ButtonStyle(bgcolor=SECONDARY_COLOR, color=ft.Colors.WHITE))
+                ]
+                if has_pdf:
+                    btns.append(ft.ElevatedButton("Leer PDF", on_click=lambda e, u=pdf_url: self._abrir_pdf(u), style=ft.ButtonStyle(bgcolor="#7c3aed", color=ft.Colors.WHITE)))
+                
+                card = ft.Card(
+                    content=ft.Container(
+                        padding=10,
+                        content=ft.Row(
+                            controls=[
+                                ft.Column([
+                                    ft.Text(l['titulo'], weight=ft.FontWeight.BOLD, size=16),
+                                    ft.Text(f"{l['autor']} • {l['anio']}", color=ft.Colors.GREY_600, size=12)
+                                ], expand=True),
+                                ft.Column(btns, spacing=5)
+                            ],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                        )
+                    )
                 )
-                tree.insert("", "end", values=valores)
+                gen_col.controls.append(card)
+            
+            self.content_area.controls.append(ft.Container(
+                content=gen_col,
+                bgcolor=ft.Colors.with_opacity(0.1, g_color),
+                padding=10,
+                border_radius=8
+            ))
 
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
-        scrollbar.pack(side="right", fill="y")
-        tree.configure(yscroll=scrollbar.set)
-
-    def crear_tabla_libros_propietario(self, parent):
-        """Crea tabla de libros para propietario"""
-        table_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        table_frame.pack(fill="both", expand=True)
-
-        style = ttk.Style()
-        columns = ("Título", "Autor", "Año")
-
-        self.tree_libros_propietario = ttk.Treeview(table_frame, columns=columns, height=12, show="headings")
-        self.tree_libros_propietario.pack(fill="both", expand=True)
-
-        for col in columns:
-            if col == "Título":
-                self.tree_libros_propietario.column(col, width=200)
-            else:
-                self.tree_libros_propietario.column(col, width=150)
-            self.tree_libros_propietario.heading(col, text=col)
-
-        self.actualizar_tabla_libros_propietario()
-
-        self.tree_libros_propietario.bind("<<TreeviewSelect>>", self._on_libro_seleccionado)
-
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree_libros_propietario.yview)
-        scrollbar.pack(side="right", fill="y")
-        self.tree_libros_propietario.configure(yscroll=scrollbar.set)
-
-        # Botón de eliminar
-        delete_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        delete_frame.pack(fill="x", padx=20, pady=(10, 0))
-
-        self.btn_eliminar_libro = ctk.CTkButton(
-            delete_frame,
-            text="Eliminar libro seleccionado",
-            command=self.eliminar_libro_seleccionado,
-            width=220,
-            height=35,
-            font=("Arial", 11, "bold"),
-            fg_color=("#dc3545", "#dc3545"),
-            state="disabled"
-        )
-        self.btn_eliminar_libro.pack(side="left")
-
-        self.libro_seleccionado = None
-
-    def actualizar_tabla_libros_propietario(self):
-        """Refresca el contenido de la tabla de libros """
-        for item in self.tree_libros_propietario.get_children():
-            self.tree_libros_propietario.delete(item)
-
-        libros = self.controller.obtener_libros()
-
-        if not libros:
-            self.tree_libros_propietario.insert("", "end", values=("No hay libros", "", ""))
-            self.btn_eliminar_libro.configure(state="disabled")
-        else:
-            for libro in libros:
-                self.tree_libros_propietario.insert("", "end", values=(libro["titulo"], libro["autor"], libro["anio"]))
-
-    def _on_libro_seleccionado(self, event):
-        selected = self.tree_libros_propietario.selection()
-        if not selected:
-            self.libro_seleccionado = None
-            self.btn_eliminar_libro.configure(state="disabled")
-            return
-
-        values = self.tree_libros_propietario.item(selected[0], "values")
-        if not values or values[0] == "No hay libros":
-            self.libro_seleccionado = None
-            self.btn_eliminar_libro.configure(state="disabled")
-        else:
-            self.libro_seleccionado = values[0]
-            self.btn_eliminar_libro.configure(state="normal")
-
-    def eliminar_libro_seleccionado(self):
-        if not self.libro_seleccionado:
-            return
-
-        confirm = messagebox.askyesno("Confirmar eliminación", f"¿Estás seguro de eliminar el libro '{self.libro_seleccionado}'?")
-        if not confirm:
-            return
-
-        eliminado = self.controller.eliminar_libro(self.libro_seleccionado)
-        if eliminado:
-            messagebox.showinfo("Éxito", "Libro eliminado correctamente")
-            self.actualizar_tabla_libros_propietario()
-            self.libro_seleccionado = None
-            self.btn_eliminar_libro.configure(state="disabled")
-        else:
-            messagebox.showerror("Error", "No se pudo eliminar el libro")
-
-    def crear_tabla_todos_prestamos(self, parent):
-        """Crea tabla de todos los préstamos"""
-        table_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        table_frame.pack(fill="both", expand=True)
-
-        style = ttk.Style()
-        columns = ("Cliente", "Libro", "Desde", "Hasta", "Estado")
-
-        tree = ttk.Treeview(table_frame, columns=columns, height=12, show="headings")
-        tree.pack(fill="both", expand=True)
-
-        tree.column("Cliente", width=120)
-        tree.column("Libro", width=150)
-        tree.column("Desde", width=100)
-        tree.column("Hasta", width=100)
-        tree.column("Estado", width=80)
-
-        for col in columns:
-            tree.heading(col, text=col)
-
-        prestamos = self.controller.obtener_todos_prestamos()
-
+    def tab_mis_prestamos(self):
+        self.content_area.controls.append(ft.Text("📋 Mis Préstamos", size=20, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR))
+        prestamos = self.app.controller.obtener_mis_prestamos()
         if not prestamos:
-            tree.insert("", "end", values=("No hay préstamos", "", "", "", ""))
-        else:
-            for prestamo in prestamos:
-                estado = "Devuelto" if prestamo["devuelto"] else "Activo"
-                tree.insert("", "end", values=(
-                    prestamo["usuario"],
-                    prestamo["libro"],
-                    prestamo["fecha_prestamo"],
-                    prestamo["fecha_vencimiento"],
-                    estado
-                ))
-
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
-        scrollbar.pack(side="right", fill="y")
-        tree.configure(yscroll=scrollbar.set)
-
-    def crear_tabla_clientes(self, parent):
-        """Crea tabla de clientes"""
-        table_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        table_frame.pack(fill="both", expand=True)
-
-        style = ttk.Style()
-        columns = ("Usuario", "Correo", "Teléfono", "Estado")
-
-        tree = ttk.Treeview(table_frame, columns=columns, height=12, show="headings")
-        tree.pack(fill="both", expand=True)
-
-        tree.column("Usuario", width=120)
-        tree.column("Correo", width=150)
-        tree.column("Teléfono", width=120)
-        tree.column("Estado", width=80)
-
-        for col in columns:
-            tree.heading(col, text=col)
-
-        clientes = self.controller.obtener_clientes()
-
-        if not clientes:
-            tree.insert("", "end", values=("No hay clientes", "", "", ""))
-        else:
-            for cliente in clientes:
-                tree.insert("", "end", values=(
-                    cliente["usuario"],
-                    cliente["correo"],
-                    cliente["telefono"],
-                    cliente["estado"]
-                ))
-
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
-        scrollbar.pack(side="right", fill="y")
-        tree.configure(yscroll=scrollbar.set)
-
-    def buscar_libros(self):
-        """Busca libros por título, autor o año"""
-        termino = self.search_entry.get().strip().lower()
-
-        if not termino:
-            messagebox.showwarning("Búsqueda", "Ingrese un término de búsqueda")
+            self.content_area.controls.append(ft.Text("No tienes préstamos activos"))
             return
+            
+        libros_dict = {l['titulo']: l for l in self.app.controller.obtener_libros()}
+        for p in prestamos:
+            estado = "Devuelto" if p["devuelto"] else "Activo"
+            libro_data = libros_dict.get(p['libro'], {})
+            pdf_url = libro_data.get('pdf_url', '') or ''
+            has_pdf = bool(pdf_url.strip())
+            
+            col_content = [
+                ft.Text(f"📖 {p['libro']}", weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR, size=16),
+                ft.Text(f"Desde: {p['fecha_renta']} | Hasta: {p['fecha_vencimiento']}\nEstado: {estado}", color=ft.Colors.GREY_600, size=12)
+            ]
+            if has_pdf:
+                col_content.append(ft.ElevatedButton("Leer / Descargar PDF", on_click=lambda e, u=pdf_url: self._abrir_pdf(u), style=ft.ButtonStyle(bgcolor="#7c3aed", color=ft.Colors.WHITE)))
+                
+            self.content_area.controls.append(
+                ft.Card(
+                    content=ft.Container(
+                        padding=10,
+                        content=ft.Column(col_content, spacing=5)
+                    )
+                )
+            )
 
-        libros = self.controller.obtener_libros()
-        resultados = [l for l in libros if termino in l["titulo"].lower() or termino in l["autor"].lower() or termino in str(l["anio"])]
+    def tab_busqueda(self):
+        self.content_area.controls.append(ft.Text("🔍 Buscar Libros", size=20, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR))
+        
+        results_col = ft.Column(spacing=10)
+        
+        def on_search(e=None):
+            termino = search_inp.value.lower().strip()
+            results_col.controls = []
+            libros = self.app.controller.obtener_libros()
+            if termino:
+                res = [l for l in libros if termino in l['titulo'].lower() or termino in l['autor'].lower() or termino in str(l.get('genero','')).lower()]
+            else:
+                res = libros # Si está vacío mostrar todos o nada. Mostremos todos.
+                
+            if not res:
+                results_col.controls.append(ft.Text("No se encontraron libros"))
+            else:
+                for l in res:
+                    pdf_url = l.get('pdf_url', '') or ''
+                    has_pdf = bool(pdf_url.strip())
+                    
+                    btns = [
+                        ft.ElevatedButton("Rentar", on_click=lambda e, t=l['titulo']: self._rentar(t, e.control), style=ft.ButtonStyle(bgcolor=SECONDARY_COLOR, color=ft.Colors.WHITE))
+                    ]
+                    if has_pdf:
+                        btns.append(ft.ElevatedButton("PDF", on_click=lambda e, u=pdf_url: self._abrir_pdf(u), style=ft.ButtonStyle(bgcolor="#7c3aed", color=ft.Colors.WHITE)))
+                    
+                    results_col.controls.append(
+                        ft.Card(
+                            content=ft.Container(
+                                padding=10,
+                                content=ft.Row(
+                                    controls=[
+                                        ft.Text(f"{l['titulo']}\n{l['autor']}", expand=True),
+                                        ft.Row(btns, spacing=5)
+                                    ]
+                                )
+                            )
+                        )
+                    )
+            self.app.page.update()
+            self._safe_update(self.content_area)
 
-        # Limpiar resultados anteriores
-        for widget in self.search_results_frame.winfo_children():
-            widget.destroy()
+        search_inp = ft.TextField(hint_text="Título, autor, género...", expand=True, on_change=on_search)
+        
+        search_row = ft.Row([
+            search_inp,
+            ft.ElevatedButton("Buscar", on_click=on_search, style=ft.ButtonStyle(bgcolor=PRIMARY_COLOR, color=ft.Colors.WHITE))
+        ])
+        
+        self.content_area.controls.append(search_row)
+        self.content_area.controls.append(results_col)
+        
+        # Load initial results (all books)
+        on_search()
 
-        if not resultados:
-            ctk.CTkLabel(self.search_results_frame, text="No se encontraron libros", font=("Arial", 12)).pack(pady=20)
-        else:
-            ctk.CTkLabel(self.search_results_frame, text=f"Se encontraron {len(resultados)} resultado(s)", font=("Arial", 12, "bold")).pack(pady=10)
+    def tab_perfil(self):
+        self.content_area.controls.append(ft.Text("👤 Mi Perfil", size=20, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR))
+        info = self.app.controller.obtener_info_usuario(self.app.controller.usuario_actual, self.app.controller.rol_actual)
+        
+        self.content_area.controls.append(
+            ft.Text(f"Usuario: {self.app.controller.usuario_actual}\nRol: {self.app.controller.rol_actual.title()}\nCorreo: {info.get('correo','')}\nTeléfono: {info.get('telefono','')}")
+        )
+        
+        email_edit = ft.TextField(label="Nuevo Correo", value=info.get('correo',''))
+        phone_edit = ft.TextField(label="Nuevo Teléfono", value=info.get('telefono',''))
+        
+        def on_save(e):
+            c = email_edit.value.strip()
+            t = phone_edit.value.strip()
+            self.app.controller.actualizar_perfil(self.app.controller.usuario_actual, self.app.controller.rol_actual, c, t)
+            self.show_alert('Éxito', 'Perfil actualizado')
+            
+        self.content_area.controls.append(email_edit)
+        self.content_area.controls.append(phone_edit)
+        self.content_area.controls.append(
+            ft.ElevatedButton("Guardar Cambios", on_click=on_save, style=ft.ButtonStyle(bgcolor=PRIMARY_COLOR, color=ft.Colors.WHITE))
+        )
 
-            for libro in resultados:
-                libro_frame = ctk.CTkFrame(self.search_results_frame, fg_color=("#e8f4f8", "#2a3a3a"), corner_radius=8)
-                libro_frame.pack(fill="x", pady=10)
+    # --- PROPIETARIO TABS ---
+    def tab_agregar(self):
+        self.content_area.controls.append(ft.Text("➕ Agregar Libro", size=20, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR))
+        
+        t_inp = ft.TextField(label="Título")
+        a_inp = ft.TextField(label="Autor")
+        y_inp = ft.TextField(label="Año")
+        p_inp = ft.TextField(label="Precio Renta", value="0")
+        s_inp = ft.TextField(label="Stock", value="0")
+        g_inp = ft.Dropdown(
+            label="Género",
+            options=[ft.dropdown.Option(g) for g in ["Novela", "Ciencia Ficción", "Fantasía", "Terror", "Romance", "Historia", "Realismo Mágico", "Misterio", "Ensayo / Historia", "Sin Género"]],
+            value="Novela"
+        )
+        
+        def on_add(e):
+            t = t_inp.value.strip()
+            a = a_inp.value.strip()
+            y = y_inp.value.strip()
+            g = g_inp.value
+            precio = p_inp.value.strip() or '0'
+            stock = s_inp.value.strip() or '0'
+            
+            if not t or not a or not y:
+                self.show_alert('Error', 'Complete los campos obligatorios (Título, Autor, Año)')
+                return
+            try:
+                self.app.controller.agregar_libro(t, a, y, g, float(precio), int(stock))
+                self.show_alert('Éxito', f'Libro "{t}" agregado correctamente')
+                t_inp.value = ""; a_inp.value = ""; y_inp.value = ""; p_inp.value = "0"; s_inp.value = "0"
+                self.app.page.update()
+                self._safe_update(self.content_area)
+            except ValueError:
+                self.show_alert('Error', 'Precio y Stock deben ser números')
+                
+        for inp in [t_inp, a_inp, y_inp, p_inp, s_inp, g_inp]:
+            self.content_area.controls.append(inp)
+            
+        self.content_area.controls.append(
+            ft.ElevatedButton("✓ Agregar Libro", on_click=on_add, style=ft.ButtonStyle(bgcolor=PRIMARY_COLOR, color=ft.Colors.WHITE))
+        )
 
-                info_text = f" {libro['titulo']} - {libro['autor']} ({libro['anio']})"
-                ctk.CTkLabel(libro_frame, text=info_text, font=("Arial", 11)).pack(anchor="w", padx=15, pady=10)
-
-                ctk.CTkButton(
-                    libro_frame,
-                    text="Rentar",
-                    command=lambda t=libro['titulo']: self.rentar_libro(t),
-                    width=80,
-                    height=30,
-                    font=("Arial", 10)
-                ).pack(anchor="e", padx=15, pady=10)
-
-    def agregar_libro(self):
-        """Valida y agrega un nuevo libro"""
-        titulo = self.entrada_titulo.get().strip()
-        autor = self.entrada_autor.get().strip()
-        anio = self.entrada_anio.get().strip()
-
-        if not titulo or not autor or not anio:
-            messagebox.showwarning("Validación", "Complete todos los campos")
+    def tab_mis_libros(self):
+        self.content_area.controls.append(ft.Text("📚 Mis Libros", size=20, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR))
+        libros = self.app.controller.obtener_libros()
+        if not libros:
+            self.content_area.controls.append(ft.Text("No hay libros registrados"))
             return
+            
+        for l in libros:
+            def on_del(e, titulo=l['titulo']):
+                self.app.controller.eliminar_libro(titulo)
+                self.show_alert('Éxito', 'Libro eliminado')
+                self.load_tab(1)
+                
+            self.content_area.controls.append(
+                ft.Card(
+                    content=ft.Container(
+                        padding=10,
+                        content=ft.Row(
+                            controls=[
+                                ft.Column([
+                                    ft.Text(l['titulo'], weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR, size=16),
+                                    ft.Text(f"{l['autor']} • {l.get('genero','?')} • Stock: {l.get('stock',0)}", color=ft.Colors.GREY_600, size=12)
+                                ], expand=True),
+                                ft.ElevatedButton("X", on_click=on_del, style=ft.ButtonStyle(bgcolor="#dc2626", color=ft.Colors.WHITE))
+                            ],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                        )
+                    )
+                )
+            )
 
-        if not anio.isdigit() or len(anio) != 4:
-            messagebox.showwarning("Validación", "El año debe ser un número de 4 dígitos")
+    def tab_todos_prestamos(self):
+        self.content_area.controls.append(ft.Text("📋 Todos los Préstamos", size=20, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR))
+        prestamos = self.app.controller.obtener_todos_prestamos()
+        if not prestamos:
+            self.content_area.controls.append(ft.Text("No hay préstamos registrados"))
             return
+            
+        for p in prestamos:
+            devuelto = p["devuelto"]
+            estado = "Devuelto" if devuelto else "Activo"
+            bg = "#d1fae5" if devuelto else "#dbeafe"
+            estado_color = "#059669" if devuelto else "#2563eb"
+            
+            self.content_area.controls.append(
+                ft.Container(
+                    bgcolor=bg,
+                    padding=10,
+                    border_radius=8,
+                    content=ft.Column([
+                        ft.Text(f"📖 {p['libro']}", weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR, size=14),
+                        ft.Row([
+                            ft.Text(f"👤 {p['usuario']}  |  Estado: ", color=ft.Colors.GREY_800, size=12),
+                            ft.Text(f"[{estado}]", weight=ft.FontWeight.BOLD, color=estado_color, size=12)
+                        ])
+                    ], spacing=5)
+                )
+            )
 
-        self.controller.agregar_libro(titulo, autor, anio)
-        messagebox.showinfo("Éxito", f"✓ '{titulo}' agregado a la biblioteca")
+    def tab_clientes(self):
+        self.content_area.controls.append(ft.Text("👥 Clientes", size=20, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR))
+        clientes = self.app.controller.obtener_clientes()
+        for c in clientes:
+            self.content_area.controls.append(
+                ft.Card(
+                    content=ft.Container(
+                        padding=10,
+                        content=ft.Text(f"User: {c['usuario']}\nEmail: {c['correo']}\nTel: {c['telefono']}")
+                    )
+                )
+            )
 
-        self.entrada_titulo.delete(0, "end")
-        self.entrada_autor.delete(0, "end")
-        self.entrada_anio.delete(0, "end")
-
-        self.mostrar_tab_mis_libros()
-
-    def rentar_libro(self, titulo):
-        """Renta un libro"""
-        if titulo == "No hay libros disponibles":
-            return
-
-        self.controller.rentar_libro(titulo)
-        messagebox.showinfo("Éxito", f"✓ Libro '{titulo}' rentado por 7 días")
-        self.mostrar_tab_mis_prestamos()
-
-    def actualizar_perfil(self):
-        """Guarda los cambios de correo y teléfono del usuario"""
-        correo = self.correo_entry.get().strip()
-        telefono = self.telefono_entry.get().strip()
-
-        if not correo or not telefono:
-            messagebox.showwarning("Validación", "El correo y el teléfono son obligatorios")
-            return
-
-        if "@" not in correo or "." not in correo:
-            messagebox.showwarning("Validación", "Ingrese un correo válido")
-            return
-
-        self.controller.actualizar_perfil(self.controller.usuario_actual, self.controller.rol_actual, correo, telefono)
-        messagebox.showinfo("Actualización", "Datos de perfil actualizados correctamente")
-
-    def cambiar_contraseña(self):
-        """Abre diálogo para cambiar contraseña con contraseña actual"""
-        actual = simpledialog.askstring("Cambiar contraseña", "Ingresa tu contraseña actual:", show="*")
-        if not actual:
-            return
-
-        nueva = simpledialog.askstring("Cambiar contraseña", "Ingresa la nueva contraseña:", show="*")
-        if not nueva or len(nueva) < 4:
-            messagebox.showwarning("Validación", "La contraseña nueva debe tener al menos 4 caracteres")
-            return
-
-        confirmacion = simpledialog.askstring("Cambiar contraseña", "Confirma la nueva contraseña:", show="*")
-        if confirmacion != nueva:
-            messagebox.showwarning("Validación", "Las contraseñas no coinciden")
-            return
-
-        if self.controller.cambiar_contraseña(self.controller.usuario_actual, self.controller.rol_actual, actual, nueva):
-            messagebox.showinfo("Contraseña", "Contraseña cambiada correctamente")
-        else:
-            messagebox.showerror("Contraseña", "Contraseña actual incorrecta")
-
-    def recuperar_contraseña(self):
-        """Solicita código de recuperación y actualiza la contraseña"""
-        user = self.controller.usuario_actual
-        rol = self.controller.rol_actual
-
-        if not self.controller.solicitar_codigo_recuperacion(user, rol):
-            messagebox.showerror("Recuperar contraseña", "No se pudo enviar el código. Verifica tu correo y configuración SMTP")
-            return
-
-        messagebox.showinfo("Recuperar contraseña", "Se envió un código al correo registrado")
-        codigo = simpledialog.askstring("Recuperar contraseña", "Ingresa el código recibido en el correo:")
-        if not codigo:
-            return
-
-        if not self.controller.verificar_codigo_recuperacion(user, rol, codigo.strip()):
-            messagebox.showerror("Recuperar contraseña", "Código incorrecto")
-            return
-
-        nueva = simpledialog.askstring("Recuperar contraseña", "Ingresa la nueva contraseña:", show="*")
-        if not nueva or len(nueva) < 4:
-            messagebox.showwarning("Validación", "La contraseña nueva debe tener al menos 4 caracteres")
-            return
-
-        confirmacion = simpledialog.askstring("Recuperar contraseña", "Confirma la nueva contraseña:", show="*")
-        if confirmacion != nueva:
-            messagebox.showwarning("Validación", "Las contraseñas no coinciden")
-            return
-
-        if self.controller.restablecer_contraseña_por_codigo(user, rol, codigo.strip(), nueva):
-            messagebox.showinfo("Recuperar contraseña", "Contraseña actualizada correctamente")
-        else:
-            messagebox.showerror("Recuperar contraseña", "No se pudo cambiar la contraseña. Intenta de nuevo")
-
-    def logout(self):
-        """Cierra la sesión y vuelve al login"""
-        self.controller.usuario_actual = None
-        self.controller.rol_actual = None
-        self.destroy()
-        from view.login_view import LoginView
-        LoginView(self.parent, self.controller).pack(fill="both", expand=True)
+    def tab_stats(self):
+        self.content_area.controls.append(ft.Text("📊 Estadísticas", size=20, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR))
+        libros = self.app.controller.obtener_libros()
+        prestamos = self.app.controller.obtener_todos_prestamos()
+        clientes = self.app.controller.obtener_clientes()
+        p_activos = len([p for p in prestamos if not p["devuelto"]])
+        p_devueltos = len([p for p in prestamos if p["devuelto"]])
+        
+        summary_items = [
+            ("📚 Libros", str(len(libros)), '#3b82f6'),
+            ("👥 Clientes", str(len(clientes)), '#10b981'),
+            ("🟢 Activos", str(p_activos), '#f59e0b'),
+            ("✅ Devueltos", str(p_devueltos), '#8b5cf6'),
+        ]
+        
+        row_summary = ft.Row(spacing=10, wrap=True)
+        for label_t, val_t, col in summary_items:
+            row_summary.controls.append(
+                ft.Container(
+                    bgcolor=ft.Colors.with_opacity(0.15, col),
+                    padding=10,
+                    border_radius=8,
+                    width=100,
+                    content=ft.Column([
+                        ft.Text(val_t, weight=ft.FontWeight.BOLD, size=24, color=col),
+                        ft.Text(label_t, size=12, color=ft.Colors.GREY_700)
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+                )
+            )
+            
+        self.content_area.controls.append(row_summary)
+        
+        # Simple Bar Chart representation using Containers
+        data = {
+            "Total Libros": len(libros),
+            "Clientes": len(clientes),
+            "Préstamos Activos": p_activos,
+            "Total Préstamos": len(prestamos)
+        }
+        max_val = max(data.values()) if data.values() else 1
+        if max_val == 0: max_val = 1
+        colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+        
+        chart_col = ft.Column(spacing=10)
+        for i, (label_t, value) in enumerate(data.items()):
+            col_hex = colors[i % len(colors)]
+            ratio = value / max_val
+            
+            chart_col.controls.append(
+                ft.Row([
+                    ft.Text(label_t, width=120, text_align=ft.TextAlign.RIGHT),
+                    ft.Container(
+                        bgcolor=col_hex,
+                        height=20,
+                        width=300 * ratio,
+                        border_radius=5
+                    ),
+                    ft.Text(str(value), weight=ft.FontWeight.BOLD)
+                ])
+            )
+            
+        self.content_area.controls.append(ft.Container(content=chart_col, padding=20))

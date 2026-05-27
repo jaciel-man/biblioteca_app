@@ -1,7 +1,7 @@
 {
     "propietario": {
-        "usuario": "adios",
-        "password": "adios",
+        "usuario": "admin",
+        "password": "$pbkdf2$ec46b94d33c59aa7f3cb4e8feadfcecf$89890a46942d789b4c54468be88d00ad9748e53b6aad4789efb6bce7272ecdff",
         "correo": "adios",
         "telefono": "1"
     },

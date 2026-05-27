@@ -1,7 +1,7 @@
-from model.usuario import UsuarioModel
-from model.libros import LibroModel
-from model.prestamos import PrestamoModel
-from services.email_service import EmailService
+from biblioblog.model.usuario import UsuarioModel
+from biblioblog.model.libros import LibroModel
+from biblioblog.model.prestamos import PrestamoModel
+from biblioblog.services.email_service import EmailService
 
 class AppController:
 
@@ -14,22 +14,22 @@ class AppController:
         self.usuario_actual = None
         self.rol_actual = None
 
-    def registrar_usuario(self, user, password, correo, telefono, rol):
+    def registrar_usuario(self, user, password, correo, telefono, rol, nombre='', apellido='', fecha_nacimiento=''):
         """Registra un nuevo usuario (clientes con código, propietario sin código)."""
         if not all([user, password, correo, telefono]):
             return False
 
         if rol == "cliente":
             codigo = self._generar_codigo_verificacion()
-            registrado = self.usuario_model.registrar(user, password, correo, telefono, rol, codigo)
+            registrado = self.usuario_model.registrar(user, password, correo, telefono, rol, codigo, nombre, apellido, fecha_nacimiento)
             if not registrado:
                 return False
             return codigo
         ##excepcion de codigo en este si pasa algo que no llena la pestaña que si esta basio o si preciona el cancelar este no lo registre la cuenta a la base de datos
 
 
-        # Propietario no necesita código
-        registrado = self.usuario_model.registrar(user, password, correo, telefono, rol)
+        # Administrador: el primero no necesita código (es principal)
+        registrado = self.usuario_model.registrar(user, password, correo, telefono, rol, None, nombre, apellido, fecha_nacimiento)
         if not registrado:
             return False
 
@@ -83,8 +83,9 @@ class AppController:
             asunto = "Bienvenido a BiblioBlog"
             cuerpo = (
                 f"Hola {usuario},\n\n"
-                "Tu cuenta de propietario ha sido creada y activada correctamente.\n\n"
-                "Ya puedes iniciar sesión directamente.\n\n"
+                "Tu cuenta de administrador ha sido creada.\n\n"
+                "Si eres el administrador principal, ya puedes iniciar sesión.\n"
+                "Si eres un administrador secundario, debes esperar a ser aprobado.\n\n"
                 "Saludos,\n"
                 "El equipo de BiblioBlog"
             )
@@ -95,24 +96,24 @@ class AppController:
         """Obtiene todos los libros disponibles"""
         return self.libro_model.obtener_libros()
 
-    def agregar_libro(self, titulo, autor, anio):
+    def agregar_libro(self, titulo, autor, anio, genero, precio_renta=0.0, stock=0, pdf_url=''):
         """Agrega un nuevo libro a la biblioteca"""
-        if titulo and autor and anio:
-            self.libro_model.agregar(titulo, autor, anio)
+        if titulo and autor and anio and genero:
+            self.libro_model.agregar(titulo, autor, anio, genero, precio_renta, stock, pdf_url)
             return True
         return False
 
     def eliminar_libro(self, titulo):
-        """Elimina un libro de la biblioteca (solo propietario)."""
-        if self.rol_actual != "propietario" or not titulo:
+        """Elimina un libro de la biblioteca (solo administrador)."""
+        if self.rol_actual != "administrador" or not titulo:
             return False
         return self.libro_model.eliminar(titulo)
 
     def rentar_libro(self, titulo):
         """Renta un libro para el usuario actual"""
         if self.usuario_actual and titulo:
-            self.prestamo_model.rentar(self.usuario_actual, titulo)
-            return True
+            resultado = self.prestamo_model.rentar(self.usuario_actual, titulo)
+            return resultado
         return False
 
     def obtener_mis_prestamos(self):
@@ -122,8 +123,8 @@ class AppController:
         return []
 
     def obtener_todos_prestamos(self):
-        """Obtiene todos los préstamos (solo para propietario)"""
-        if self.rol_actual == "propietario":
+        """Obtiene todos los préstamos (solo para administrador)"""
+        if self.rol_actual == "administrador":
             return self.prestamo_model.obtener_todos()
         return []
 
@@ -131,7 +132,7 @@ class AppController:
         """Devuelve un libro"""
         if self.rol_actual == "cliente" and self.usuario_actual == usuario:
             return self.prestamo_model.devolver_libro(usuario, titulo)
-        elif self.rol_actual == "propietario":
+        elif self.rol_actual == "administrador":
             return self.prestamo_model.devolver_libro(usuario, titulo)
         return False
 
@@ -139,21 +140,31 @@ class AppController:
         """Renueva un préstamo por 7 días más"""
         if self.rol_actual == "cliente" and self.usuario_actual == usuario:
             return self.prestamo_model.renovar(usuario, titulo)
-        elif self.rol_actual == "propietario":
+        elif self.rol_actual == "administrador":
             return self.prestamo_model.renovar(usuario, titulo)
         return False
 
     def obtener_clientes(self):
-        """Obtiene lista de todos los clientes (solo para propietario)"""
-        if self.rol_actual == "propietario":
+        """Obtiene lista de todos los clientes (solo para administrador)"""
+        if self.rol_actual == "administrador":
             return self.usuario_model.obtener_todos_clientes()
         return []
 
     def obtener_info_cliente(self, usuario):
         """Obtiene información de un cliente específico"""
-        if self.rol_actual == "propietario":
+        if self.rol_actual == "administrador":
             return self.usuario_model.obtener_info_cliente(usuario)
         return None
+
+    def obtener_administradores_pendientes(self):
+        if self.rol_actual == "administrador":
+            return self.usuario_model.obtener_administradores_pendientes()
+        return []
+
+    def aprobar_administrador(self, usuario):
+        if self.rol_actual == "administrador":
+            return self.usuario_model.aprobar_administrador(usuario)
+        return False
 
     def obtener_info_usuario(self, user, rol):
         return self.usuario_model.obtener_info_usuario(user, rol)
